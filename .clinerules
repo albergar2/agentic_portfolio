@@ -1,0 +1,5 @@
+Currency Shield: Never send the string "£" or "$" followed by a number higher than 100 to the LLM; use weights only.
+
+Translation Guard: If a term like "Efectivo" appears in the output, the script must fail-safe and re-run the translation layer.
+
+Validation: Before any recommendation is shown, the script must verify that the new "Target Weights" sum to exactly 100%.
