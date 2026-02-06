@@ -21,10 +21,12 @@ from dataclasses import dataclass, asdict
 from enum import Enum
 from urllib.parse import quote
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from ddgs import DDGS
 import trafilatura
 from dotenv import load_dotenv
+from src.core.privacy import PrivacyManager
 
 
 class SourceType(Enum):
@@ -80,8 +82,8 @@ class MarketOracle:
             raise ValueError("Gemini API key not found. Please set GEMINI_API_KEY environment variable.")
         
         # Configure Gemini API
-        genai.configure(api_key=self.gemini_api_key)
-        self.model = genai.GenerativeModel('gemini-1.5-flash')
+        self.client = genai.Client(api_key=self.gemini_api_key)
+        self.model_name = 'gemini-1.5-flash'
         
         # Initialize DuckDuckGo search client
         self.ddgs = DDGS()
@@ -117,13 +119,17 @@ class MarketOracle:
         Returns:
             Dict[str, List[Dict]]: Research results organized by institution
         """
+        # Redact any values from inputs
+        safe_ticker = PrivacyManager.redact_text(ticker)
+        safe_sector = PrivacyManager.redact_text(sector) if sector else None
+
         research_results = {}
         
         for institution in self.primary_sources:
-            print(f"🔍 Researching {institution} outlook for {ticker}...")
+            print(f"🔍 Researching {institution} outlook for {safe_ticker}...")
             
             # Step A: Search for reports
-            search_query = self._build_search_query(institution, ticker, sector)
+            search_query = self._build_search_query(institution, safe_ticker, safe_sector)
             self._rate_limit()
             
             try:
@@ -260,9 +266,10 @@ class MarketOracle:
         
         try:
             # Single Gemini call to respect rate limits
-            response = self.model.generate_content(
-                consensus_prompt,
-                generation_config=genai.types.GenerationConfig(
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=consensus_prompt,
+                config=types.GenerateContentConfig(
                     temperature=0.3,
                     max_output_tokens=4000,
                     top_p=0.8
