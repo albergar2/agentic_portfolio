@@ -19,10 +19,10 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 
 # Import our modules
-from .portfolio_masker import SimplePortfolioMasker
-from ai.market_oracle import MarketOracle, get_macro_context
-from core.database import DatabaseManager
-from ai.strategist import PortfolioWeightCalculator
+from src.core.config import WEALTHFOLIO_DB
+from src.services.portfolio_masker import SimplePortfolioMasker
+from src.core.database import DatabaseManager
+from src.ai.strategist import PortfolioWeightCalculator
 
 
 @dataclass
@@ -37,7 +37,7 @@ class ReportData:
 class ReportOrchestrator:
     """Orchestrates the generation of the final strategy report."""
     
-    def __init__(self, db_path: str = "db/weatlhfolio.db"):
+    def __init__(self, db_path: str = str(WEALTHFOLIO_DB)):
         """
         Initialize the report orchestrator.
         
@@ -413,6 +413,8 @@ STYLE VOICE:
         # Step 2: Get macro context using MarketOracle
         print("2. Retrieving 2026 institutional themes...")
         try:
+            # Lazy import to avoid slow startup
+            from src.ai.market_oracle import get_macro_context
             macro_context = get_macro_context()
             print("   ✓ Macro context retrieved")
             
