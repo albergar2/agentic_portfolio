@@ -123,3 +123,10 @@ logs/
 
 # Reports
 reports/
+
+# Databases
+db/
+
+# Agents
+.agent/
+

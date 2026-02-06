@@ -10,12 +10,13 @@ import sqlite3
 import json
 from typing import List, Dict, Any, Optional
 from contextlib import contextmanager
+from src.core.config import WEALTHFOLIO_DB
 
 
 class DatabaseManager:
     """Manages read-only connection to the wealthfolio database."""
     
-    def __init__(self, db_path: str = "db/weatlhfolio.db"):
+    def __init__(self, db_path: str = str(WEALTHFOLIO_DB)):
         """
         Initialize the database manager.
         
