@@ -2,339 +2,202 @@
 """
 Wealthfolio Portfolio Strategy System - Main Orchestrator
 
-This is the main entry point for the Wealthfolio Portfolio Strategy System.
-It provides a unified interface for generating comprehensive portfolio strategy reports
-using AI-driven analysis and market research.
-
-The system combines:
-- Portfolio data analysis and privacy-preserving masking
-- Market research and institutional outlook analysis
-- AI-driven strategy recommendations
-- Comprehensive report generation
-
-Usage:
-    python src/main.py [command] [options]
-
-Commands:
-    report      Generate a complete strategy report
-    portfolio   Analyze portfolio health
-    market      Get market research and macro context
-    help        Show help information
+Unified interface for generating strategy reports, analyzing portfolio performance,
+and enriching asset metadata using AI and market research.
 """
 
-import sys
 import argparse
 import logging
+import sys
 from datetime import datetime
-from typing import Dict, Any, Optional
+from pathlib import Path
+from typing import Optional
 
-# Configure logging
+from rich.console import Console
+from rich.table import Table
+from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.logging import RichHandler
+from rich.markdown import Markdown
+
+from src.core.config import WEALTHFOLIO_DB, REPORTS_DIR, LOG_FILE
+
+# Configure logging with Rich
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format="%(message)s",
+    datefmt="[%X]",
     handlers=[
-        logging.FileHandler('wealthfolio.log'),
-        logging.StreamHandler()
+        RichHandler(rich_tracebacks=True),
+        logging.FileHandler(str(LOG_FILE))
     ]
 )
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("wealthfolio")
+console = Console()
 
+class WealthfolioCLI:
+    """CLI for the Wealthfolio Portfolio Strategy System."""
+    
+    def __init__(self):
+        self.db_path = str(WEALTHFOLIO_DB)
 
-class WealthfolioOrchestrator:
-    """Main orchestrator for the Wealthfolio Portfolio Strategy System."""
-    
-    def __init__(self, db_path: str = "db/weatlhfolio.db"):
+    def show_banner(self):
+        """Display a stylish banner."""
+        banner_text = """
+ [bold cyan]Wealthfolio[/bold cyan] [bold white]Portfolio Strategy System[/bold white]
+ [italic blue]AI-Driven Analysis & Market Orchestration[/italic blue]
         """
-        Initialize the orchestrator.
+        console.print(Panel(banner_text, border_style="cyan"))
+
+    def show_modules(self):
+        """Display project modules and their responsibilities."""
+        table = Table(title="Wealthfolio Core Modules", border_style="blue")
+        table.add_column("Module", style="cyan", no_wrap=True)
+        table.add_column("Description", style="white")
+
+        modules = [
+            ("core.config", "Centralized configuration and path management."),
+            ("core.database", "SQLite database management and connection handling."),
+            ("core.portfolio", "Core logic for parsing and representing portfolio data."),
+            ("services.enricher", "Fetches market data (yfinance) and AI insights for assets."),
+            ("services.analysis", "Generates detailed performance, risk, and exposure reports."),
+            ("services.orchestrator", "Coordinates AI agents to produce strategic investment reports."),
+            ("services.masker", "Ensures data privacy by masking sensitive information."),
+            ("ai.market_oracle", "Provides 2026 macro-economic context and market predictions."),
+        ]
+
+        for mod, desc in modules:
+            table.add_row(mod, desc)
+
+        console.print(table)
+
+    def generate_strategy_report(self, output: str = None):
+        """Generate AI-driven strategy report."""
+        # Lazy import to avoid slow startup
+        from src.services.report_orchestrator import ReportOrchestrator
         
-        Args:
-            db_path (str): Path to the wealthfolio database
-        """
-        self.db_path = db_path
-        self.config = self._load_config()
-    
-    def _load_config(self) -> Dict[str, Any]:
-        """Load configuration settings."""
-        return {
-            "db_path": self.db_path,
-            "report_format": "markdown",
-            "output_dir": "reports",
-            "llm_model": "gemini-1.5-flash",
-            "analysis_depth": "comprehensive"
-        }
-    
-    def generate_strategy_report(self, output_file: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Generate a complete strategy report.
-        
-        Args:
-            output_file (Optional[str]): Output file path for the report
-            
-        Returns:
-            Dict[str, Any]: Report generation results
-        """
-        logger.info("Starting strategy report generation...")
-        
-        try:
-            # Import modules dynamically to avoid circular imports
-            import sys
-            import os
-            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-            
-            from services.report_orchestrator import ReportOrchestrator
-            
-            # Initialize the report orchestrator
+        with console.status("[bold green]Generating strategy report...") as status:
             orchestrator = ReportOrchestrator(self.db_path)
-            
-            # Generate the report
             report = orchestrator.generate_report()
-            
-            # Save to file if specified
-            if output_file:
-                import os
-                # Ensure the directory exists
-                output_dir = os.path.dirname(output_file)
-                if output_dir:  # Only create directory if there is one
-                    os.makedirs(output_dir, exist_ok=True)
-                with open(output_file, 'w') as f:
-                    f.write(report)
-                logger.info(f"Report saved to: {output_file}")
-            
-            return {
-                "success": True,
-                "report": report,
-                "output_file": output_file,
-                "timestamp": datetime.now().isoformat()
-            }
-            
-        except Exception as e:
-            logger.error(f"Error generating strategy report: {str(e)}")
-            return {
-                "success": False,
-                "error": str(e),
-                "timestamp": datetime.now().isoformat()
-            }
-    
-    def analyze_portfolio_health(self) -> Dict[str, Any]:
-        """
-        Analyze portfolio health and composition.
         
-        Returns:
-            Dict[str, Any]: Portfolio health analysis results
-        """
-        logger.info("Starting portfolio health analysis...")
-        
-        try:
-            import sys
-            import os
-            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-            
-            from core.portfolio import PortfolioAnalyzer
-            from core.database import DatabaseManager
-            
-            # Initialize components
-            db_manager = DatabaseManager(self.db_path)
-            analyzer = PortfolioAnalyzer(db_manager)
-            
-            # Analyze portfolio health
-            health_analysis = analyzer.analyze_portfolio_health()
-            
-            return {
-                "success": True,
-                "analysis": health_analysis,
-                "timestamp": datetime.now().isoformat()
-            }
-            
-        except Exception as e:
-            logger.error(f"Error analyzing portfolio health: {str(e)}")
-            return {
-                "success": False,
-                "error": str(e),
-                "timestamp": datetime.now().isoformat()
-            }
-    
-    def get_market_context(self) -> Dict[str, Any]:
-        """
-        Get current market research and macro context.
-        
-        Returns:
-            Dict[str, Any]: Market context and research results
-        """
-        logger.info("Starting market context analysis...")
-        
-        try:
-            from ai.market_oracle import get_macro_context
-            
-            # Get macro context
-            macro_context = get_macro_context()
-            
-            return {
-                "success": True,
-                "macro_context": macro_context,
-                "timestamp": datetime.now().isoformat()
-            }
-            
-        except Exception as e:
-            logger.error(f"Error getting market context: {str(e)}")
-            return {
-                "success": False,
-                "error": str(e),
-                "timestamp": datetime.now().isoformat()
-            }
-    
-    def run_comprehensive_analysis(self, output_dir: str = "reports") -> Dict[str, Any]:
-        """
-        Run a comprehensive analysis including all components.
-        
-        Args:
-            output_dir (str): Directory to save output files
-            
-        Returns:
-            Dict[str, Any]: Comprehensive analysis results
-        """
-        logger.info("Starting comprehensive analysis...")
-        
-        results = {
-            "portfolio_health": None,
-            "market_context": None,
-            "strategy_report": None,
-            "success": False,
-            "timestamp": datetime.now().isoformat()
-        }
-        
-        try:
-            # 1. Analyze portfolio health
-            portfolio_result = self.analyze_portfolio_health()
-            results["portfolio_health"] = portfolio_result
-            
-            if not portfolio_result["success"]:
-                logger.warning("Portfolio health analysis failed, continuing with other analyses")
-            
-            # 2. Get market context
-            market_result = self.get_market_context()
-            results["market_context"] = market_result
-            
-            if not market_result["success"]:
-                logger.warning("Market context analysis failed, continuing with report generation")
-            
-            # 3. Generate strategy report
-            report_file = f"{output_dir}/strategy_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
-            report_result = self.generate_strategy_report(report_file)
-            results["strategy_report"] = report_result
-            
-            # Determine overall success
-            results["success"] = report_result["success"]
-            
-            logger.info("Comprehensive analysis completed")
-            return results
-            
-        except Exception as e:
-            logger.error(f"Error in comprehensive analysis: {str(e)}")
-            results["error"] = str(e)
-            return results
+        if output:
+            output_path = Path(output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(output_path, 'w') as f:
+                f.write(report)
+            console.print(f"[bold green]✅ Strategy report saved to:[/bold green] [blue]{output}[/blue]")
+        else:
+            console.print(Markdown(report))
 
+    def analyze_portfolio(self):
+        """Generate detailed performance and exposure report."""
+        # Lazy import to avoid slow startup
+        from src.services.analysis_service import AnalysisService
+        
+        with console.status("[bold green]Analyzing portfolio...") as status:
+            service = AnalysisService()
+            report = service.generate_report()
+        
+        console.print(Panel(report, title="Portfolio Analysis", border_style="green"))
+
+    def enrich_portfolio(self):
+        """Enrich portfolio data with yfinance and AI."""
+        # Lazy import to avoid slow startup
+        from src.services.portfolio_enricher import PortfolioEnricher
+        
+        console.print("[bold blue]Starting portfolio enrichment...[/bold blue]")
+        enricher = PortfolioEnricher()
+        enricher.run()
+        console.print("[bold green]✅ Portfolio enrichment completed successfully![/bold green]")
+
+    def show_market_context(self):
+        """Display 2026 macro context."""
+        # Lazy import to avoid slow startup
+        from src.ai.market_oracle import get_macro_context
+        
+        with console.status("[bold blue]Retrieving market context...") as status:
+            context = get_macro_context()
+        
+        console.print(Panel(context, title="2026 MARKET MACRO CONTEXT", border_style="magenta"))
+
+    def run_comprehensive(self, output_dir: str):
+        """Run all analysis steps and save reports."""
+        # Lazy import to avoid slow startup
+        from src.services.analysis_service import AnalysisService
+        
+        console.print(f"[bold bold cyan]🚀 Running comprehensive analysis suite...[/bold bold cyan]")
+        now = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        # 1. Enrichment
+        self.enrich_portfolio()
+        
+        # 2. Detailed Analysis
+        analysis_service = AnalysisService()
+        analysis_report = analysis_service.generate_report()
+        analysis_file = output_path / f"portfolio_analysis_{now}.txt"
+        with open(analysis_file, 'w') as f:
+            f.write(analysis_report)
+        console.print(f"[bold green]✅ Detailed analysis saved to:[/bold green] [blue]{analysis_file}[/blue]")
+        
+        # 3. Strategy Report
+        strategy_file = output_path / f"strategy_report_{now}.md"
+        self.generate_strategy_report(str(strategy_file))
+        
+        console.print("[bold cyan]✨ Comprehensive analysis suite finished.[/bold cyan]")
 
 def main():
-    """Main entry point for the Wealthfolio Portfolio Strategy System."""
-    
     parser = argparse.ArgumentParser(
         description="Wealthfolio Portfolio Strategy System",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  python src/main.py report --output reports/strategy.md
-  python src/main.py portfolio
-  python src/main.py market
-  python src/main.py comprehensive --output-dir reports/
-        """
+        formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
-    
-    # Report command
-    report_parser = subparsers.add_parser('report', help='Generate a complete strategy report')
-    report_parser.add_argument('--output', '-o', type=str, help='Output file path for the report')
-    
-    # Portfolio command
-    portfolio_parser = subparsers.add_parser('portfolio', help='Analyze portfolio health')
-    
-    # Market command
-    market_parser = subparsers.add_parser('market', help='Get market research and macro context')
-    
-    # Comprehensive command
-    comprehensive_parser = subparsers.add_parser('comprehensive', help='Run comprehensive analysis')
-    comprehensive_parser.add_argument('--output-dir', '-d', type=str, default='reports', help='Output directory for reports')
-    
-    # Help command
-    subparsers.add_parser('help', help='Show help information')
-    
-    # Parse arguments
-    args = parser.parse_args()
-    
-    # Handle help command
-    if args.command == 'help' or not args.command:
-        parser.print_help()
-        return
-    
-    try:
-        # Initialize orchestrator
-        orchestrator = WealthfolioOrchestrator()
-        
-        # Execute command
-        if args.command == 'report':
-            result = orchestrator.generate_strategy_report(args.output)
-            if result["success"]:
-                print("✅ Strategy report generated successfully!")
-                if args.output:
-                    print(f"📄 Report saved to: {args.output}")
-                else:
-                    print("📄 Report generated in memory")
-            else:
-                print(f"❌ Error generating report: {result['error']}")
-        
-        elif args.command == 'portfolio':
-            result = orchestrator.analyze_portfolio_health()
-            if result["success"]:
-                print("✅ Portfolio health analysis completed!")
-                analysis = result["analysis"]
-                print(f"📊 Current Equity Weight: {analysis['current_equity_weight']}%")
-                print(f"🎯 Target Range: {analysis['target_range']}")
-                print(f"⚠️  Off Benchmark: {analysis['off_benchmark']}")
-                print(f"📈 Total Holdings: {analysis['geographic_analysis']['total_holdings']}")
-            else:
-                print(f"❌ Error analyzing portfolio: {result['error']}")
-        
-        elif args.command == 'market':
-            result = orchestrator.get_market_context()
-            if result["success"]:
-                print("✅ Market context analysis completed!")
-                print("📋 Macro Context Summary:")
-                print(result["macro_context"][:500] + "..." if len(result["macro_context"]) > 500 else result["macro_context"])
-            else:
-                print(f"❌ Error getting market context: {result['error']}")
-        
-        elif args.command == 'comprehensive':
-            result = orchestrator.run_comprehensive_analysis(args.output_dir)
-            if result["success"]:
-                print("✅ Comprehensive analysis completed successfully!")
-                print(f"📁 Output directory: {args.output_dir}")
-            else:
-                print(f"❌ Error in comprehensive analysis: {result.get('error', 'Unknown error')}")
-        
-        else:
-            print(f"❌ Unknown command: {args.command}")
-            parser.print_help()
-    
-    except KeyboardInterrupt:
-        print("\n⚠️  Operation cancelled by user")
-        sys.exit(1)
-    
-    except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}")
-        print(f"❌ Unexpected error: {str(e)}")
-        sys.exit(1)
 
+    # info (new)
+    subparsers.add_parser('info', help='Display project module descriptions and architecture')
+
+    # report
+    report_parser = subparsers.add_parser('report', help='Generate AI-driven strategy report')
+    report_parser.add_argument('--output', '-o', type=str, help='Output markdown file path')
+
+    # analyze
+    subparsers.add_parser('analyze', help='Detailed performance and exposure analysis')
+
+    # enrich
+    subparsers.add_parser('enrich', help='Enrich portfolio assets with metadata and AI insights')
+
+    # market
+    subparsers.add_parser('market', help='Show 2026 macro-economic context')
+
+    # comprehensive
+    comp_parser = subparsers.add_parser('comprehensive', help='Run all analysis and enrichment steps')
+    comp_parser.add_argument('--output-dir', '-d', type=str, default='reports', help='Directory to save reports')
+
+    args = parser.parse_args()
+    cli = WealthfolioCLI()
+
+    if not args.command:
+        cli.show_banner()
+        parser.print_help()
+        sys.exit(0)
+
+    # Show banner for all commands except help (if needed)
+    cli.show_banner()
+
+    if args.command == 'info':
+        cli.show_modules()
+    elif args.command == 'report':
+        cli.generate_strategy_report(args.output)
+    elif args.command == 'analyze':
+        cli.analyze_portfolio()
+    elif args.command == 'enrich':
+        cli.enrich_portfolio()
+    elif args.command == 'market':
+        cli.show_market_context()
+    elif args.command == 'comprehensive':
+        cli.run_comprehensive(args.output_dir)
 
 if __name__ == "__main__":
     main()
